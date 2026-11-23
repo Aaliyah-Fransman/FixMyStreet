@@ -2,23 +2,63 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Mail, Lock, ArrowRight } from "lucide-react";
+import { apiRequest } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    role: "Resident",
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    if (formData.role === "Admin") {
-      navigate("/admin");
-    } else {
-      navigate("/dashboard");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const data = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(formData),
+      });
+
+      if (!data.session?.access_token) {
+        throw new Error(
+          "Login succeeded, but no active session was returned."
+        );
+      }
+
+      localStorage.setItem(
+        "access_token",
+        data.session.access_token
+      );
+
+      const user = await refreshUser();
+
+      if (!user) {
+        throw new Error(
+          "Unable to verify your account. Please try again."
+        );
+      }
+
+      if (user.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else if (user.role === "resident") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        throw new Error("Your account has an unrecognised role.");
+      }
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,28 +130,19 @@ export default function Login() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Account type
-              </label>
-
-              <select
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="Resident">Resident</option>
-                <option value="Admin">Administrator (Demo)</option>
-              </select>
-            </div>
+            {error && (
+              <p className="text-red-600 text-sm font-medium" role="alert">
+                {error}
+              </p>
+            )}
 
             <button
               type="submit"
-              className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
+              disabled={loading}
+              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
             >
-              Sign In <ArrowRight size={19} />
+              {loading ? "Signing in..." : "Sign In"}
+              {!loading && <ArrowRight size={19} />}
             </button>
           </form>
 

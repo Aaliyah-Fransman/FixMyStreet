@@ -1,7 +1,14 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, User, Mail, Lock, ArrowRight } from "lucide-react";
+import {
+  MapPin,
+  User,
+  Mail,
+  Lock,
+  ArrowRight,
+} from "lucide-react";
+import { apiRequest } from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -11,13 +18,34 @@ export default function Register() {
     email: "",
     password: "",
     confirmPassword: "",
+    area_id: "",
   });
 
+  const [areas, setAreas] = useState([]);
+  const [areasLoading, setAreasLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const data = await apiRequest("/areas");
+        setAreas(data.areas || []);
+      } catch (err) {
+        setError("Unable to load municipalities. Please refresh the page.");
+      } finally {
+        setAreasLoading(false);
+      }
+    };
+
+    fetchAreas();
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setMessage("");
 
     if (formData.password.length < 8) {
       setError("Your password must be at least 8 characters long.");
@@ -29,8 +57,34 @@ export default function Register() {
       return;
     }
 
-    alert("Registration demo successful! Backend registration is not connected yet.");
-    navigate("/login");
+    if (!formData.area_id) {
+      setError("Please select your municipality.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const data = await apiRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          area_id: formData.area_id,
+        }),
+      });
+
+      setMessage(data.message || "Registration successful.");
+
+      if (data.session) {
+        navigate("/login");
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,10 +114,7 @@ export default function Register() {
                 Full name
               </label>
               <div className="relative">
-                <User
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
                 <input
                   type="text"
                   required
@@ -82,10 +133,7 @@ export default function Register() {
                 Email address
               </label>
               <div className="relative">
-                <Mail
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
                 <input
                   type="email"
                   required
@@ -101,13 +149,38 @@ export default function Register() {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Municipality
+              </label>
+              <select
+                required
+                value={formData.area_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, area_id: e.target.value })
+                }
+                disabled={areasLoading || areas.length === 0}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+              >
+                <option value="">
+                  {areasLoading
+                    ? "Loading municipalities..."
+                    : areas.length === 0
+                    ? "No municipalities available"
+                    : "Select your municipality"}
+                </option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.municipality}, {area.province}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
                 <input
                   type="password"
                   required
@@ -126,10 +199,7 @@ export default function Register() {
                 Confirm password
               </label>
               <div className="relative">
-                <Lock
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
                 <input
                   type="password"
                   required
@@ -152,20 +222,25 @@ export default function Register() {
               </p>
             )}
 
+            {message && (
+              <p className="text-green-700 text-sm font-medium" role="status">
+                {message}
+              </p>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
+              disabled={loading || areasLoading || areas.length === 0}
+              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
             >
-              Create Account <ArrowRight size={19} />
+              {loading ? "Creating account..." : "Create Account"}
+              {!loading && <ArrowRight size={19} />}
             </button>
           </form>
 
           <p className="text-center text-sm text-slate-600 mt-7">
             Already have an account?{" "}
-            <Link
-              to="/login"
-              className="text-blue-700 font-bold hover:underline"
-            >
+            <Link to="/login" className="text-blue-700 font-bold hover:underline">
               Sign in
             </Link>
           </p>

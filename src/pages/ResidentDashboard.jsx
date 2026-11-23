@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   ClipboardList,
@@ -13,33 +13,82 @@ import {
 
 import Navbar from "../components/Navbar";
 import ReportCard from "../components/ReportCard";
+import { apiRequest } from "../api";
+
+function normaliseReport(report) {
+  const category = Array.isArray(report.categories)
+    ? report.categories[0]
+    : report.categories;
+
+  return {
+    ...report,
+    category: category?.name || "Uncategorised",
+    location: report.location || report.suburb || "Location not provided",
+    date: report.created_at
+      ? new Date(report.created_at).toLocaleDateString("en-ZA")
+      : "Date unavailable",
+  };
+}
 
 function ResidentDashboard({ reports, setReports }) {
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showForm, setShowForm] = useState(false);
 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "Potholes",
+    category_id: "",
     location: "",
     priority: "Medium",
   });
 
-  const categories = [
-    "Potholes",
-    "Broken streetlights",
-    "Damaged roads",
-    "Illegal dumping",
-  ];
+  // Load reports and categories from the backend
+  useEffect(() => {
+    async function loadDashboard() {
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        setError("Please log in again to view reports.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const [reportData, categoryData] = await Promise.all([
+          apiRequest("/reports", { headers }),
+          apiRequest("/categories", { headers }),
+        ]);
+
+        setReports((reportData.reports || []).map(normaliseReport));
+        setCategories(categoryData.categories || []);
+      } catch (err) {
+        setError(err.message || "Unable to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [setReports]);
 
   const filteredReports = reports.filter((report) => {
     const searchMatch =
-      report.title.toLowerCase().includes(search.toLowerCase()) ||
-      report.description.toLowerCase().includes(search.toLowerCase()) ||
-      report.location.toLowerCase().includes(search.toLowerCase());
+      (report.title || "").toLowerCase().includes(search.toLowerCase()) ||
+      (report.description || "").toLowerCase().includes(search.toLowerCase()) ||
+      (report.location || "").toLowerCase().includes(search.toLowerCase());
 
     const categoryMatch =
       categoryFilter === "All" || report.category === categoryFilter;
@@ -73,39 +122,69 @@ function ResidentDashboard({ reports, setReports }) {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
-    const newReport = {
-      id: Date.now(),
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      category: formData.category,
-      location: formData.location.trim(),
-      status: "Pending",
-      priority: formData.priority,
-      date: new Date().toISOString().split("T")[0],
-    };
+    setFormError("");
+    setSuccessMessage("");
 
-    setReports((previousReports) => [
-      newReport,
-      ...previousReports,
-    ]);
+    const token = localStorage.getItem("access_token");
 
-    setFormData({
-      title: "",
-      description: "",
-      category: "Potholes",
-      location: "",
-      priority: "Medium",
-    });
+    if (!token) {
+      setFormError("Your session has expired. Please log in again.");
+      return;
+    }
 
-    setShowForm(false);
-    setSearch("");
-    setCategoryFilter("All");
-    setStatusFilter("All");
+    if (!formData.category_id) {
+      setFormError("Please select a report category.");
+      return;
+    }
 
-    alert("Your report has been submitted successfully!");
+    setSubmitting(true);
+
+    try {
+      await apiRequest("/reports", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          category_id: formData.category_id,
+          location: formData.location.trim(),
+          priority: formData.priority,
+        }),
+      });
+
+      // Reload reports so the new database record appears
+      const reportData = await apiRequest("/reports", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setReports((reportData.reports || []).map(normaliseReport));
+
+      setFormData({
+        title: "",
+        description: "",
+        category_id: "",
+        location: "",
+        priority: "Medium",
+      });
+
+      setShowForm(false);
+      setSearch("");
+      setCategoryFilter("All");
+      setStatusFilter("All");
+
+      setSuccessMessage("Your report was submitted successfully!");
+    } catch (err) {
+      setFormError(err.message || "Unable to submit your report.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -115,7 +194,6 @@ function ResidentDashboard({ reports, setReports }) {
       <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-7xl">
 
-          {/* Heading */}
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-600">
@@ -127,12 +205,15 @@ function ResidentDashboard({ reports, setReports }) {
               </h1>
 
               <p className="mt-2 text-slate-500">
-                View community issues and keep track of your reports.
+                View community issues and keep track of reports.
               </p>
             </div>
 
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setShowForm(true);
+                setFormError("");
+              }}
               className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
             >
               <Plus size={20} />
@@ -140,34 +221,25 @@ function ResidentDashboard({ reports, setReports }) {
             </button>
           </div>
 
-          {/* Statistics */}
+          {error && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+              {successMessage}
+            </div>
+          )}
+
           <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Reports"
-              value={totalReports}
-              icon={<ClipboardList size={22} />}
-            />
-
-            <StatCard
-              title="Pending"
-              value={pendingReports}
-              icon={<AlertCircle size={22} />}
-            />
-
-            <StatCard
-              title="In Progress"
-              value={inProgressReports}
-              icon={<Clock size={22} />}
-            />
-
-            <StatCard
-              title="Resolved"
-              value={resolvedReports}
-              icon={<CheckCircle size={22} />}
-            />
+            <StatCard title="Total Reports" value={totalReports} icon={<ClipboardList size={22} />} />
+            <StatCard title="Pending" value={pendingReports} icon={<AlertCircle size={22} />} />
+            <StatCard title="In Progress" value={inProgressReports} icon={<Clock size={22} />} />
+            <StatCard title="Resolved" value={resolvedReports} icon={<CheckCircle size={22} />} />
           </div>
 
-          {/* Report submission form */}
           {showForm && (
             <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6 flex items-center justify-between">
@@ -175,7 +247,6 @@ function ResidentDashboard({ reports, setReports }) {
                   <h2 className="text-xl font-bold text-slate-900">
                     Submit a Community Report
                   </h2>
-
                   <p className="mt-1 text-sm text-slate-500">
                     Provide details about the problem you have noticed.
                   </p>
@@ -191,6 +262,12 @@ function ResidentDashboard({ reports, setReports }) {
                 </button>
               </div>
 
+              {formError && (
+                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {formError}
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -204,7 +281,7 @@ function ResidentDashboard({ reports, setReports }) {
                     onChange={handleInputChange}
                     placeholder="Example: Large pothole near the intersection"
                     required
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -215,14 +292,17 @@ function ResidentDashboard({ reports, setReports }) {
                     </label>
 
                     <select
-                      name="category"
-                      value={formData.category}
+                      name="category_id"
+                      value={formData.category_id}
                       onChange={handleInputChange}
+                      required
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500"
                     >
+                      <option value="">Select a category</option>
+
                       {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
+                        <option key={category.id} value={category.id}>
+                          {category.name}
                         </option>
                       ))}
                     </select>
@@ -258,7 +338,7 @@ function ResidentDashboard({ reports, setReports }) {
                     onChange={handleInputChange}
                     placeholder="Example: Northcliff, Johannesburg"
                     required
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -274,7 +354,7 @@ function ResidentDashboard({ reports, setReports }) {
                     placeholder="Describe the issue and how it affects the community..."
                     required
                     rows="4"
-                    className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -289,17 +369,17 @@ function ResidentDashboard({ reports, setReports }) {
 
                   <button
                     type="submit"
-                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                    disabled={submitting}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Send size={18} />
-                    Submit Report
+                    {submitting ? "Submitting..." : "Submit Report"}
                   </button>
                 </div>
               </form>
             </section>
           )}
 
-          {/* Search and filters */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-lg font-bold text-slate-900">
               Find Community Reports
@@ -327,10 +407,9 @@ function ResidentDashboard({ reports, setReports }) {
                 className="rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500"
               >
                 <option value="All">All Categories</option>
-
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                  <option key={category.id} value={category.name}>
+                    {category.name}
                   </option>
                 ))}
               </select>
@@ -348,7 +427,6 @@ function ResidentDashboard({ reports, setReports }) {
             </div>
           </section>
 
-          {/* Community reports */}
           <section>
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-900">
@@ -360,7 +438,11 @@ function ResidentDashboard({ reports, setReports }) {
               </span>
             </div>
 
-            {filteredReports.length > 0 ? (
+            {loading ? (
+              <div className="rounded-2xl bg-white p-12 text-center text-slate-500">
+                Loading reports...
+              </div>
+            ) : filteredReports.length > 0 ? (
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {filteredReports.map((report) => (
                   <ReportCard key={report.id} report={report} />
@@ -383,11 +465,6 @@ function ResidentDashboard({ reports, setReports }) {
               </div>
             )}
           </section>
-
-          <p className="mt-8 text-center text-xs text-slate-400">
-            Demonstration data for the Phase 1 frontend. Reports are not yet
-            saved to a database.
-          </p>
         </div>
       </main>
     </>

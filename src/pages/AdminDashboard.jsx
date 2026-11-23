@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -10,21 +10,77 @@ import {
   X,
   Save,
 } from "lucide-react";
+
 import Navbar from "../components/Navbar";
+import { apiRequest } from "../api";
 
 const emptyForm = {
   title: "",
   description: "",
-  category: "Potholes",
+  category_id: "",
   location: "",
   status: "Pending",
   priority: "Medium",
 };
 
+function normaliseReport(report) {
+  const category = Array.isArray(report.categories)
+    ? report.categories[0]
+    : report.categories;
+
+  return {
+    ...report,
+    category: category?.name || "Uncategorised",
+    location: report.location || report.suburb || "Location not provided",
+    date: report.created_at
+      ? new Date(report.created_at).toLocaleDateString("en-ZA")
+      : "Date unavailable",
+  };
+}
+
 export default function AdminDashboard({ reports, setReports }) {
+  const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const token = localStorage.getItem("access_token");
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  // Load reports and categories
+  useEffect(() => {
+    async function loadDashboard() {
+      if (!token) {
+        setError("Please log in again.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [reportData, categoryData] = await Promise.all([
+          apiRequest("/reports", { headers }),
+          apiRequest("/categories", { headers }),
+        ]);
+
+        setReports((reportData.reports || []).map(normaliseReport));
+        setCategories(categoryData.categories || []);
+      } catch (err) {
+        setError(err.message || "Unable to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [setReports]);
 
   const pending = reports.filter(
     (report) => report.status === "Pending"
@@ -41,60 +97,128 @@ export default function AdminDashboard({ reports, setReports }) {
   const openAddForm = () => {
     setEditingId(null);
     setFormData(emptyForm);
+    setError("");
+    setSuccessMessage("");
     setShowForm(true);
   };
 
   const openEditForm = (report) => {
     setEditingId(report.id);
+
     setFormData({
-      title: report.title,
-      description: report.description,
-      category: report.category,
-      location: report.location,
-      status: report.status,
-      priority: report.priority,
+      title: report.title || "",
+      description: report.description || "",
+      category_id: report.category_id || "",
+      location: report.location || "",
+      status: report.status || "Pending",
+      priority: report.priority || "Medium",
     });
+
+    setError("");
+    setSuccessMessage("");
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-    if (editingId !== null) {
-      setReports((previousReports) =>
-        previousReports.map((report) =>
-          report.id === editingId
-            ? { ...report, ...formData }
-            : report
-        )
-      );
-    } else {
-      const newReport = {
-        id: Date.now(),
-        ...formData,
-        date: new Date().toISOString().split("T")[0],
-      };
+    setError("");
+    setSuccessMessage("");
 
-      setReports((previousReports) => [
-        newReport,
-        ...previousReports,
-      ]);
+    if (!token) {
+      setError("Your session has expired. Please log in again.");
+      return;
     }
 
-    setShowForm(false);
-    setEditingId(null);
-    setFormData(emptyForm);
+    setSubmitting(true);
+
+    try {
+      const reportDetails = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category_id: formData.category_id,
+        location: formData.location.trim(),
+        priority: formData.priority,
+      };
+
+      if (editingId !== null) {
+        // Update report details
+        await apiRequest(`/reports/${editingId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(reportDetails),
+        });
+
+        // Update report status separately
+        await apiRequest(`/reports/${editingId}/status`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            status: formData.status,
+          }),
+        });
+
+        setSuccessMessage("Report updated successfully!");
+      } else {
+        // Create a new report
+        const result = await apiRequest("/reports", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(reportDetails),
+        });
+
+        // Apply selected status if it isn't the default
+        if (formData.status !== "Pending" && result.report?.id) {
+          await apiRequest(`/reports/${result.report.id}/status`, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({
+              status: formData.status,
+            }),
+          });
+        }
+
+        setSuccessMessage("Report created successfully!");
+      }
+
+      // Refresh reports from the database
+      const reportData = await apiRequest("/reports", { headers });
+
+      setReports((reportData.reports || []).map(normaliseReport));
+
+      setShowForm(false);
+      setEditingId(null);
+      setFormData(emptyForm);
+    } catch (err) {
+      setError(err.message || "Unable to save the report.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const deleteReport = (id) => {
+  const deleteReport = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this report?"
     );
 
-    if (confirmed) {
+    if (!confirmed) return;
+
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await apiRequest(`/reports/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+
       setReports((previousReports) =>
         previousReports.filter((report) => report.id !== id)
       );
+
+      setSuccessMessage("Report deleted successfully!");
+    } catch (err) {
+      setError(err.message || "Unable to delete this report.");
     }
   };
 
@@ -135,6 +259,7 @@ export default function AdminDashboard({ reports, setReports }) {
 
       <main className="min-h-screen bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 py-10">
+
           <div className="flex flex-wrap justify-between items-center gap-5 mb-9">
             <div>
               <span className="text-blue-700 text-sm font-bold uppercase tracking-widest">
@@ -158,6 +283,18 @@ export default function AdminDashboard({ reports, setReports }) {
               Add New Report
             </button>
           </div>
+
+          {error && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+              {successMessage}
+            </div>
+          )}
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
             {stats.map((stat) => {
@@ -207,6 +344,7 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Report title
                   </label>
+
                   <input
                     required
                     value={formData.title}
@@ -222,6 +360,7 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Location
                   </label>
+
                   <input
                     required
                     value={formData.location}
@@ -237,17 +376,22 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Category
                   </label>
+
                   <select
-                    value={formData.category}
+                    required
+                    value={formData.category_id}
                     onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                      setFormData({ ...formData, category_id: e.target.value })
                     }
                     className="w-full border border-slate-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option>Potholes</option>
-                    <option>Broken streetlights</option>
-                    <option>Damaged roads</option>
-                    <option>Illegal dumping</option>
+                    <option value="">Select a category</option>
+
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -255,6 +399,7 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Status
                   </label>
+
                   <select
                     value={formData.status}
                     onChange={(e) =>
@@ -272,6 +417,7 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Priority
                   </label>
+
                   <select
                     value={formData.priority}
                     onChange={(e) =>
@@ -289,6 +435,7 @@ export default function AdminDashboard({ reports, setReports }) {
                   <label className="block text-sm font-semibold mb-2">
                     Description
                   </label>
+
                   <textarea
                     required
                     rows={3}
@@ -307,10 +454,15 @@ export default function AdminDashboard({ reports, setReports }) {
                 <div className="md:col-span-2 flex flex-wrap gap-3">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-xl font-bold"
+                    disabled={submitting}
+                    className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-xl font-bold disabled:opacity-60"
                   >
                     <Save size={18} />
-                    {editingId !== null ? "Save Changes" : "Create Report"}
+                    {submitting
+                      ? "Saving..."
+                      : editingId !== null
+                        ? "Save Changes"
+                        : "Create Report"}
                   </button>
 
                   <button
@@ -330,12 +482,17 @@ export default function AdminDashboard({ reports, setReports }) {
               <h2 className="text-xl font-bold text-slate-900">
                 Manage Reports
               </h2>
+
               <p className="text-sm text-slate-500 mt-1">
-                Demonstration data for the Phase 1 frontend.
+                Manage reports submitted by the community.
               </p>
             </div>
 
-            {reports.length === 0 ? (
+            {loading ? (
+              <div className="p-12 text-center text-slate-500">
+                Loading reports...
+              </div>
+            ) : reports.length === 0 ? (
               <div className="p-12 text-center text-slate-500">
                 No reports have been added yet.
               </div>
