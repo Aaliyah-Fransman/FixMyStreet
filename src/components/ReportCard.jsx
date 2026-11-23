@@ -1,79 +1,10 @@
-
-import {
-  MapPin,
-  CalendarDays,
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
-  LoaderCircle,
-} from "lucide-react";
-
-export default function ReportCard({ report }) {
-  const statusStyles = {
-    Pending: "bg-amber-100 text-amber-800",
-    "In Progress": "bg-blue-100 text-blue-800",
-    Resolved: "bg-green-100 text-green-800",
-  };
-
-  const priorityStyles = {
-    High: "text-red-600",
-    Medium: "text-amber-600",
-    Low: "text-green-600",
-  };
-
-  const statusIcons = {
-    Pending: <Clock size={16} />,
-    "In Progress": <LoaderCircle size={16} />,
-    Resolved: <CheckCircle2 size={16} />,
-  };
-
-  return (
-    <article className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <span className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full">
-          {report.category}
-        </span>
-
-        <span
-          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${
-            statusStyles[report.status] || "bg-slate-100 text-slate-700"
-          }`}
-        >
-          {statusIcons[report.status]}
-          {report.status}
-        </span>
-      </div>
-
-      <h3 className="text-lg font-bold text-slate-900 mb-2">
-        {report.title}
-      </h3>
-
-      <p className="text-slate-600 text-sm leading-6 mb-5">
-        {report.description}
-      </p>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <MapPin size={14} />
-            {report.location}
-          </span>
-
-          <span className="flex items-center gap-1">
-            <CalendarDays size={14} />
-            {report.date}
-          </span>
-        </div>
-
-        <span
-          className={`flex items-center gap-1 text-xs font-semibold ${
-            priorityStyles[report.priority] || "text-slate-600"
-          }`}
-        >
-          <AlertTriangle size={14} />
-          {report.priority} priority
-        </span>
-      </div>
-    </article>
-  );
+import {MapPin,CalendarDays,AlertTriangle,Clock,CheckCircle2,LoaderCircle} from "lucide-react";
+export default function ReportCard({report}){
+ const styles={Pending:"status-pending","In Progress":"status-progress",Resolved:"status-resolved"};
+ const icons={Pending:<Clock size={14}/>,"In Progress":<LoaderCircle size={14}/>,Resolved:<CheckCircle2 size={14}/>};
+ return <article className="report-card">{report.images?.length>0&&<img src={report.images[0]} alt="Resident-submitted evidence" className="report-photo"/>}
+ <div className="flex items-center justify-between gap-2 mb-5"><span className="category-tag">{report.category}</span><span className={"status-pill "+(styles[report.status]||"status-pending")}>{icons[report.status]}{report.status}</span></div>
+ <h3 className="text-xl font-semibold tracking-tight text-[#20251f]">{report.title}</h3><p className="mt-2 text-sm leading-6 text-[#72786e]">{report.description}</p>
+ <div className="report-meta"><span><MapPin size={14}/>{report.location}</span><span><CalendarDays size={14}/>{report.date}</span></div>
+ <div className="mt-4 flex items-center justify-between border-t border-[#ecece4] pt-4"><span className="text-xs font-semibold uppercase tracking-wider text-[#8b8e83]"><AlertTriangle size={13} className="inline mr-1"/> {report.priority||"Medium"} priority</span><span className="text-xs text-[#9a9d91]">Report #{String(report.id).slice(-4)}</span></div></article>;
 }
