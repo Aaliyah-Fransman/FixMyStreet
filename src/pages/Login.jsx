@@ -29,22 +29,15 @@ export default function Login() {
       });
 
       if (!data.session?.access_token) {
-        throw new Error(
-          "Login succeeded, but no active session was returned."
-        );
+        throw new Error("Login succeeded, but no active session was returned.");
       }
 
-      localStorage.setItem(
-        "access_token",
-        data.session.access_token
-      );
+      localStorage.setItem("access_token", data.session.access_token);
 
       const user = await refreshUser();
 
       if (!user) {
-        throw new Error(
-          "Unable to verify your account. Please try again."
-        );
+        throw new Error("Unable to verify your account. Please try again.");
       }
 
       if (user.role === "admin") {
@@ -54,7 +47,6 @@ export default function Login() {
       } else {
         throw new Error("Your account has an unrecognised role.");
       }
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -63,37 +55,53 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <Link to="/" className="flex justify-center items-center gap-2 mb-8">
-          <div className="bg-blue-700 text-white p-2 rounded-xl">
-            <MapPin size={25} />
-          </div>
-          <span className="text-2xl font-extrabold text-slate-900">
-            FixMyStreet
-          </span>
+    <main className="auth-shell">
+      <div className="auth-aside">
+        <Link to="/" className="brand text-white">
+          <span className="brand-mark"><MapPin /></span>
+          fixmy<span className="text-[#c9f36a]">street.</span>
         </Link>
 
-        <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-2">
-            Welcome back
+        <div>
+          <p className="section-kicker light">
+            YOUR VOICE. YOUR NEIGHBOURHOOD.
+          </p>
+
+          <h1 className="display-title text-white">
+            Good to<br />
+            <span className="hero-highlight">see you.</span>
           </h1>
 
-          <p className="text-slate-500 mb-8">
-            Sign in to access your FixMyStreet account.
+          <p className="text-[#b7c0b0] leading-7 max-w-sm">
+            Sign in to follow local reports, share what needs attention
+            and keep your community in the loop.
+          </p>
+        </div>
+
+        <p className="text-xs tracking-widest text-[#859080]">
+          COMMUNITY INFRASTRUCTURE REPORTING / 2026
+        </p>
+      </div>
+
+      <div className="auth-main">
+        <div className="auth-card">
+          <p className="section-kicker">MEMBER ACCESS / 01</p>
+
+          <h2 className="text-3xl font-extrabold tracking-tight mt-3">
+            Welcome back.
+          </h2>
+
+          <p className="text-sm text-[#7e8577] mt-2 mb-8">
+            Enter your details to continue.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Email address
-              </label>
+            <label className="field-label">
+              Email address
 
-              <div className="relative">
-                <Mail
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+              <div className="field-icon">
+                <Mail size={17} />
+
                 <input
                   type="email"
                   required
@@ -102,21 +110,16 @@ export default function Login() {
                     setFormData({ ...formData, email: e.target.value })
                   }
                   placeholder="you@example.com"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Password
-              </label>
+            <label className="field-label">
+              Password
 
-              <div className="relative">
-                <Lock
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={19}
-                />
+              <div className="field-icon">
+                <Lock size={17} />
+
                 <input
                   type="password"
                   required
@@ -125,45 +128,41 @@ export default function Login() {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   placeholder="Enter your password"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </label>
 
             {error && (
-              <p className="text-red-600 text-sm font-medium" role="alert">
+              <p className="text-sm text-red-600 font-medium" role="alert">
                 {error}
               </p>
             )}
 
             <button
+              className="button-primary w-full mt-2"
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
             >
-              {loading ? "Signing in..." : "Sign In"}
-              {!loading && <ArrowRight size={19} />}
+              {loading ? "Signing in..." : "Sign in"}
+              {!loading && <ArrowRight size={17} />}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-600 mt-7">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
-              className="text-blue-700 font-bold hover:underline"
-            >
-              Register here
+          <p className="text-sm text-center text-[#7c8376] mt-7">
+            New to the neighbourhood?{" "}
+            <Link to="/register" className="font-bold text-[#627c38]">
+              Create an account
             </Link>
           </p>
-        </div>
 
-        <Link
-          to="/"
-          className="block text-center text-sm text-slate-500 hover:text-blue-700 mt-6"
-        >
-          ← Back to home
-        </Link>
+          <Link
+            to="/"
+            className="block text-center text-xs text-[#899081] mt-7"
+          >
+            ← Back to homepage
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

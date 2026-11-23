@@ -1,10 +1,6 @@
 
 import { useState } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -24,12 +20,11 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home reports={reports} />} />
+
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Resident Dashboard */}
           <Route
             path="/dashboard"
             element={
@@ -42,7 +37,6 @@ function App() {
             }
           />
 
-          {/* Admin Dashboard */}
           <Route
             path="/admin"
             element={
@@ -55,7 +49,6 @@ function App() {
             }
           />
 
-          {/* 404 Page */}
           <Route
             path="*"
             element={
@@ -67,10 +60,7 @@ function App() {
                   <p className="mt-3 text-slate-500">
                     Page not found.
                   </p>
-                  <a
-                    href="/"
-                    className="mt-5 inline-block rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
-                  >
+                  <a href="/" className="mt-5 inline-block rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white">
                     Return Home
                   </a>
                 </div>

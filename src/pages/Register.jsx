@@ -1,13 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  MapPin,
-  User,
-  Mail,
-  Lock,
-  ArrowRight,
-} from "lucide-react";
+import { MapPin, User, Mail, Lock, ArrowRight } from "lucide-react";
 import { apiRequest } from "../api";
 
 export default function Register() {
@@ -81,40 +74,61 @@ export default function Register() {
         navigate("/login");
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <Link to="/" className="flex justify-center items-center gap-2 mb-8">
-          <div className="bg-blue-700 text-white p-2 rounded-xl">
-            <MapPin size={25} />
-          </div>
-          <span className="text-2xl font-extrabold text-slate-900">
-            FixMyStreet
+    <main className="auth-shell">
+      <div className="auth-aside">
+        <Link to="/" className="brand text-white">
+          <span className="brand-mark">
+            <MapPin />
           </span>
+          fixmy<span className="text-[#c9f36a]">street.</span>
         </Link>
 
-        <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-2">
-            Create account
-          </h1>
-
-          <p className="text-slate-500 mb-7">
-            Join your community on FixMyStreet.
+        <div>
+          <p className="section-kicker light">
+            BETTER STREETS START TOGETHER.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Full name
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
+          <h1 className="display-title text-white">
+            Be part
+            <br />
+            of the <span className="hero-highlight">change.</span>
+          </h1>
+
+          <p className="text-[#b7c0b0] leading-7 max-w-sm">
+            Join your neighbours in making local infrastructure issues
+            visible and easier to follow.
+          </p>
+        </div>
+
+        <p className="text-xs tracking-widest text-[#859080]">
+          COMMUNITY INFRASTRUCTURE REPORTING / 2026
+        </p>
+      </div>
+
+      <div className="auth-main">
+        <div className="auth-card">
+          <p className="section-kicker">JOIN THE COMMUNITY / 02</p>
+
+          <h2 className="text-3xl font-extrabold tracking-tight mt-3">
+            Create your account.
+          </h2>
+
+          <p className="text-sm text-[#7e8577] mt-2 mb-7">
+            A few details and you're ready to take part.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <label className="field-label">
+              Full name
+              <div className="field-icon">
+                <User size={17} />
                 <input
                   type="text"
                   required
@@ -123,17 +137,14 @@ export default function Register() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   placeholder="Your full name"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
+            <label className="field-label">
+              Email address
+              <div className="field-icon">
+                <Mail size={17} />
                 <input
                   type="email"
                   required
@@ -142,15 +153,12 @@ export default function Register() {
                     setFormData({ ...formData, email: e.target.value })
                   }
                   placeholder="you@example.com"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Municipality
-              </label>
+            <label className="field-label">
+              Municipality
               <select
                 required
                 value={formData.area_id}
@@ -158,7 +166,7 @@ export default function Register() {
                   setFormData({ ...formData, area_id: e.target.value })
                 }
                 disabled={areasLoading || areas.length === 0}
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                className="w-full border border-[#d8dccf] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#c9f36a] disabled:bg-[#f0f1eb]"
               >
                 <option value="">
                   {areasLoading
@@ -167,20 +175,19 @@ export default function Register() {
                     ? "No municipalities available"
                     : "Select your municipality"}
                 </option>
+
                 {areas.map((area) => (
                   <option key={area.id} value={area.id}>
                     {area.municipality}, {area.province}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
+            <label className="field-label">
+              Password
+              <div className="field-icon">
+                <Lock size={17} />
                 <input
                   type="password"
                   required
@@ -189,17 +196,14 @@ export default function Register() {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   placeholder="At least 8 characters"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Confirm password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
+            <label className="field-label">
+              Confirm password
+              <div className="field-icon">
+                <Lock size={17} />
                 <input
                   type="password"
                   required
@@ -210,49 +214,48 @@ export default function Register() {
                       confirmPassword: e.target.value,
                     })
                   }
-                  placeholder="Enter your password again"
-                  className="w-full border border-slate-300 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter password again"
                 />
               </div>
-            </div>
+            </label>
 
             {error && (
-              <p className="text-red-600 text-sm font-medium" role="alert">
+              <p className="text-sm text-red-600 font-medium" role="alert">
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="text-green-700 text-sm font-medium" role="status">
+              <p className="text-sm text-green-700 font-medium" role="status">
                 {message}
               </p>
             )}
 
             <button
+              className="button-primary w-full mt-2"
               type="submit"
               disabled={loading || areasLoading || areas.length === 0}
-              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition"
             >
-              {loading ? "Creating account..." : "Create Account"}
-              {!loading && <ArrowRight size={19} />}
+              {loading ? "Creating account..." : "Create account"}
+              {!loading && <ArrowRight size={17} />}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-600 mt-7">
-            Already have an account?{" "}
-            <Link to="/login" className="text-blue-700 font-bold hover:underline">
+          <p className="text-sm text-center text-[#7c8376] mt-6">
+            Already a member?{" "}
+            <Link to="/login" className="font-bold text-[#627c38]">
               Sign in
             </Link>
           </p>
-        </div>
 
-        <Link
-          to="/"
-          className="block text-center text-sm text-slate-500 hover:text-blue-700 mt-6"
-        >
-          ← Back to home
-        </Link>
+          <Link
+            to="/"
+            className="block text-center text-xs text-[#899081] mt-6"
+          >
+            ← Back to homepage
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
