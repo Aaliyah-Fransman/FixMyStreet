@@ -1,12 +1,25 @@
-
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Plus, Pencil, Trash2, ClipboardList, Clock,
-  CheckCircle2, X, Save, MapPin
+  Plus,
+  Pencil,
+  Trash2,
+  ClipboardList,
+  Clock,
+  CheckCircle2,
+  X,
+  Save,
+  MapPin,
+  Mail,
+  ShieldCheck,
+  Phone,
+  LogOut,
+  ImageOff,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import { apiRequest } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 const emptyForm = {
   title: "",
@@ -33,6 +46,9 @@ function normaliseReport(report) {
 }
 
 export default function AdminDashboard({ reports, setReports }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
   const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -72,7 +88,7 @@ export default function AdminDashboard({ reports, setReports }) {
     }
 
     loadDashboard();
-  }, [setReports]);
+  }, [setReports, token]);
 
   const pending = reports.filter(r => r.status === "Pending").length;
   const inProgress = reports.filter(r => r.status === "In Progress").length;
@@ -129,7 +145,7 @@ export default function AdminDashboard({ reports, setReports }) {
 
       if (editingId !== null) {
         await apiRequest(`/reports/${editingId}`, {
-          method: "PUT",
+          method: "PATCH",
           headers,
           body: JSON.stringify(reportDetails),
         });
@@ -189,8 +205,13 @@ export default function AdminDashboard({ reports, setReports }) {
       setReports(previous => previous.filter(report => report.id !== id));
       setSuccessMessage("Report deleted successfully!");
     } catch (err) {
-      setError(err.message || "Unable to delete this report.");
+      setError(err.message || "Unable to delete the report.");
     }
+  }
+
+  function handleLogout() {
+    logout();
+    navigate("/login");
   }
 
   return (
@@ -203,9 +224,11 @@ export default function AdminDashboard({ reports, setReports }) {
           <div className="flex flex-wrap justify-between items-end gap-5 mb-9">
             <div>
               <p className="section-kicker">ADMINISTRATION / CONTROL ROOM</p>
+
               <h1 className="text-4xl font-extrabold tracking-tight mt-3 text-[#202820]">
                 Report <em className="font-serif font-medium text-[#80964d]">management.</em>
               </h1>
+
               <p className="text-sm text-[#777e70] mt-3">
                 Review incoming community reports and keep their status up to date.
               </p>
@@ -215,6 +238,97 @@ export default function AdminDashboard({ reports, setReports }) {
               <Plus size={18} /> Add a report
             </button>
           </div>
+
+          {/* ADMIN PROFILE */}
+
+          <section className="bg-white border border-[#e1e3d9] rounded-lg p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-[#eaf0dc] flex items-center justify-center text-[#526b32]">
+                  <ShieldCheck size={27} />
+                </div>
+
+                <div>
+                  <p className="section-kicker">ADMINISTRATOR PROFILE</p>
+
+                  <h2 className="text-xl font-bold text-[#202820] mt-1">
+                    {user?.full_name || user?.name || "Administrator"}
+                  </h2>
+
+                  <p className="text-xs text-[#71805d] mt-1 flex items-center gap-1">
+                    <CheckCircle2 size={13} />
+                    Logged in · Administrator
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#202820] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#3b4b35] hover:shadow-md"
+              >
+                <LogOut size={17} />
+                <span>Log out</span>
+              </button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4 mt-6 pt-5 border-t border-[#eceee6]">
+              <div className="flex items-center gap-3">
+                <Mail size={17} className="text-[#80964d]" />
+                <div>
+                  <p className="text-xs text-[#929889]">Email address</p>
+                  <p className="text-sm font-medium text-[#303b2c]">
+                    {user?.email || "Not available"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <MapPin size={17} className="text-[#80964d]" />
+                <div>
+                  <p className="text-xs text-[#929889]">Assigned area</p>
+                  <p className="text-sm font-medium text-[#303b2c]">
+                    {user?.suburb || "Area not specified"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SUPPORT CONTACTS */}
+
+          <section className="bg-[#202820] text-white rounded-lg p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Phone size={18} className="text-[#c9f36a]" />
+              <h2 className="font-bold">FixMyStreet support contacts</h2>
+            </div>
+
+            <p className="text-sm text-[#c8cec0] mb-5">
+              Contact the FixMyStreet team if you need assistance with the platform.
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-5">
+              <a
+                href="mailto:fixmystreet@gmail.com"
+                className="flex items-center gap-3 text-sm hover:text-[#c9f36a] transition"
+              >
+                <Mail size={17} className="text-[#c9f36a]" />
+                fixmystreet@gmail.com
+              </a>
+
+              <a
+                href="tel:+27811477813"
+                className="flex items-center gap-3 text-sm hover:text-[#c9f36a] transition"
+              >
+                <Phone size={17} className="text-[#c9f36a]" />
+                +27 81 147 7813
+              </a>
+            </div>
+
+            <p className="text-xs text-[#aeb8a5] mt-5">
+              These are platform support contacts, not emergency services.
+              For immediate danger, contact the appropriate emergency services.
+            </p>
+          </section>
 
           {error && (
             <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -228,6 +342,8 @@ export default function AdminDashboard({ reports, setReports }) {
             </div>
           )}
 
+          {/* REPORT STATISTICS */}
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
             {stats.map(([label, value, Icon]) => (
               <div key={label} className="bg-white border border-[#e2e4da] rounded-lg p-5">
@@ -235,16 +351,20 @@ export default function AdminDashboard({ reports, setReports }) {
                   <span>{label}</span>
                   <Icon size={17} className="text-[#80964d]" />
                 </div>
+
                 <p className="text-3xl font-bold mt-4 text-[#202820]">{value}</p>
               </div>
             ))}
           </div>
+
+          {/* REPORT FORM */}
 
           {showForm && (
             <section className="bg-white border border-[#dfe2d6] rounded-lg p-6 mb-8">
               <div className="flex justify-between mb-6">
                 <div>
                   <p className="section-kicker">REPORT EDITOR</p>
+
                   <h2 className="text-2xl font-bold mt-2">
                     {editingId !== null ? "Update report" : "Create report"}
                   </h2>
@@ -285,6 +405,7 @@ export default function AdminDashboard({ reports, setReports }) {
                     onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                   >
                     <option value="">Select a category</option>
+
                     {categories.map(category => (
                       <option key={category.id} value={category.id}>
                         {category.name}
@@ -348,6 +469,8 @@ export default function AdminDashboard({ reports, setReports }) {
             </section>
           )}
 
+          {/* ALL REPORTS */}
+
           <section className="bg-white border border-[#e1e3d9] rounded-lg overflow-hidden">
             <div className="p-6 border-b border-[#eceee6]">
               <p className="section-kicker">INCOMING & EXISTING</p>
@@ -355,7 +478,9 @@ export default function AdminDashboard({ reports, setReports }) {
             </div>
 
             {loading ? (
-              <div className="p-12 text-center text-[#7b8274]">Loading reports...</div>
+              <div className="p-12 text-center text-[#7b8274]">
+                Loading reports...
+              </div>
             ) : !reports.length ? (
               <div className="p-12 text-center text-[#7b8274]">
                 No reports have been added yet.
@@ -363,19 +488,52 @@ export default function AdminDashboard({ reports, setReports }) {
             ) : (
               <div className="divide-y divide-[#eceee6]">
                 {reports.map(report => (
-                  <article key={report.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="min-w-0">
+                  <article
+                    key={report.id}
+                    className="p-5 flex flex-col md:flex-row md:items-start justify-between gap-5"
+                  >
+                    <div className="min-w-0 flex-1">
+
+                      {/* REPORT IMAGE */}
+
+                      {report.image_url ? (
+                        <img
+                          src={report.image_url}
+                          alt={`Photographic evidence for ${report.title}`}
+                          className="w-full max-w-md h-52 object-cover rounded-lg mb-4 border border-[#e1e3d9]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full max-w-md h-24 rounded-lg bg-[#f2f3ed] flex items-center justify-center gap-2 mb-4 text-[#a0a596]">
+                          <ImageOff size={20} />
+                          <span className="text-xs">
+                            No photograph attached
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <strong className="text-[#202820]">{report.title}</strong>
+
                         <span className="category-tag">{report.category}</span>
-                        <span className="status-pill status-pending">{report.status}</span>
+
+                        <span className="status-pill status-pending">
+                          {report.status}
+                        </span>
                       </div>
 
                       <p className="text-xs text-[#858b7d] flex items-center gap-1">
-                        <MapPin size={13} /> {report.location} · {report.date}
+                        <MapPin size={13} />
+                        {report.location} · {report.date}
                       </p>
 
-                      <p className="text-sm text-[#747b6e] mt-2">{report.description}</p>
+                      <p className="text-sm text-[#747b6e] mt-2">
+                        {report.description}
+                      </p>
+
+                      <p className="text-xs text-[#8b8e83] mt-3">
+                        {report.priority || "Medium"} priority
+                      </p>
                     </div>
 
                     <div className="flex gap-2 shrink-0">

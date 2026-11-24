@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, User, Mail, Lock, ArrowRight } from "lucide-react";
+import {
+  MapPin,
+  User,
+  Mail,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 import { apiRequest } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -12,6 +21,8 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     area_id: "",
+    role: "resident",
+    admin_invitation_code: "",
   });
 
   const [areas, setAreas] = useState([]);
@@ -37,6 +48,7 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setError("");
     setMessage("");
 
@@ -55,6 +67,14 @@ export default function Register() {
       return;
     }
 
+    if (
+      formData.role === "admin" &&
+      !formData.admin_invitation_code.trim()
+    ) {
+      setError("Please enter the administrator invitation code.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -65,14 +85,45 @@ export default function Register() {
           email: formData.email,
           password: formData.password,
           area_id: formData.area_id,
+          role: formData.role,
+          admin_invitation_code: formData.admin_invitation_code,
         }),
       });
 
-      setMessage(data.message || "Registration successful.");
+      // Automatically log in if Supabase returns an active session.
+      if (data.session?.access_token) {
+        localStorage.setItem(
+          "access_token",
+          data.session.access_token
+        );
 
-      if (data.session) {
-        navigate("/login");
+        if (data.session.refresh_token) {
+          localStorage.setItem(
+            "refresh_token",
+            data.session.refresh_token
+          );
+        }
+
+        const user = await refreshUser();
+
+        if (!user) {
+          throw new Error(
+            "Your account was created, but we could not start your session. Please log in."
+          );
+        }
+
+        navigate(user.role === "admin" ? "/admin" : "/dashboard", {
+          replace: true,
+        });
+
+        return;
       }
+
+      // Email verification is required before login.
+      setMessage(
+        data.message ||
+          "Your account was created. Please verify your email before logging in."
+      );
     } catch (err) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {
@@ -127,14 +178,19 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <label className="field-label">
               Full name
+
               <div className="field-icon">
                 <User size={17} />
+
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({
+                      ...formData,
+                      name: e.target.value,
+                    })
                   }
                   placeholder="Your full name"
                 />
@@ -143,14 +199,19 @@ export default function Register() {
 
             <label className="field-label">
               Email address
+
               <div className="field-icon">
                 <Mail size={17} />
+
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
+                    setFormData({
+                      ...formData,
+                      email: e.target.value,
+                    })
                   }
                   placeholder="you@example.com"
                 />
@@ -159,11 +220,15 @@ export default function Register() {
 
             <label className="field-label">
               Municipality
+
               <select
                 required
                 value={formData.area_id}
                 onChange={(e) =>
-                  setFormData({ ...formData, area_id: e.target.value })
+                  setFormData({
+                    ...formData,
+                    area_id: e.target.value,
+                  })
                 }
                 disabled={areasLoading || areas.length === 0}
                 className="w-full border border-[#d8dccf] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#c9f36a] disabled:bg-[#f0f1eb]"
@@ -184,16 +249,71 @@ export default function Register() {
               </select>
             </label>
 
+            {/* ACCOUNT TYPE */}
+            <label className="field-label">
+              Account type
+
+              <select
+                required
+                value={formData.role}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    role: e.target.value,
+                    admin_invitation_code: "",
+                  })
+                }
+                className="w-full border border-[#d8dccf] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#c9f36a]"
+              >
+                <option value="resident">Resident</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+
+            {/* ADMIN INVITATION CODE */}
+            {formData.role === "admin" && (
+              <label className="field-label">
+                Administrator invitation code
+
+                <div className="field-icon">
+                  <ShieldCheck size={17} />
+
+                  <input
+                    type="password"
+                    required
+                    value={formData.admin_invitation_code}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        admin_invitation_code: e.target.value,
+                      })
+                    }
+                    placeholder="Enter your invitation code"
+                  />
+                </div>
+
+                <span className="text-xs text-[#858b7e]">
+                  An authorised invitation code is required to register
+                  as an administrator.
+                </span>
+              </label>
+            )}
+
             <label className="field-label">
               Password
+
               <div className="field-icon">
                 <Lock size={17} />
+
                 <input
                   type="password"
                   required
                   value={formData.password}
                   onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
+                    setFormData({
+                      ...formData,
+                      password: e.target.value,
+                    })
                   }
                   placeholder="At least 8 characters"
                 />
@@ -202,8 +322,10 @@ export default function Register() {
 
             <label className="field-label">
               Confirm password
+
               <div className="field-icon">
                 <Lock size={17} />
+
                 <input
                   type="password"
                   required
@@ -220,13 +342,19 @@ export default function Register() {
             </label>
 
             {error && (
-              <p className="text-sm text-red-600 font-medium" role="alert">
+              <p
+                className="text-sm text-red-600 font-medium"
+                role="alert"
+              >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="text-sm text-green-700 font-medium" role="status">
+              <p
+                className="text-sm text-green-700 font-medium"
+                role="status"
+              >
                 {message}
               </p>
             )}
@@ -236,15 +364,21 @@ export default function Register() {
               type="submit"
               disabled={loading || areasLoading || areas.length === 0}
             >
-              {loading ? "Creating account..." : "Create account"}
+              {loading
+                ? "Creating account..."
+                : "Create account"}
+
               {!loading && <ArrowRight size={17} />}
             </button>
           </form>
 
           <p className="text-sm text-center text-[#7c8376] mt-6">
             Already a member?{" "}
-            <Link to="/login" className="font-bold text-[#627c38]">
-              Sign in
+            <Link
+              to="/login"
+              className="font-bold text-[#627c38]"
+            >
+              Log in
             </Link>
           </p>
 
