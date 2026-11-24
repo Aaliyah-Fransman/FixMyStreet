@@ -169,14 +169,24 @@ export default function ResidentDashboard({ reports, setReports }) {
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setFormError("Please select a valid image.");
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setFormError(
+        "Please select a JPEG, PNG or WebP image."
+      );
       event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setFormError("Your image must be smaller than 5MB.");
+      setFormError(
+        "Your image must be smaller than 5MB."
+      );
       event.target.value = "";
       return;
     }
@@ -200,7 +210,9 @@ export default function ResidentDashboard({ reports, setReports }) {
     const currentToken = localStorage.getItem("access_token");
 
     if (!currentToken) {
-      setFormError("Your session has expired. Please log in again.");
+      setFormError(
+        "Your session has expired. Please log in again."
+      );
       return;
     }
 
@@ -212,19 +224,35 @@ export default function ResidentDashboard({ reports, setReports }) {
     setSubmitting(true);
 
     try {
+      // Create FormData so the report and image
+      // can be sent together to the backend.
+
+      const payload = new FormData();
+
+      payload.append("title", formData.title.trim());
+      payload.append(
+        "description",
+        formData.description.trim()
+      );
+      payload.append("category_id", formData.category_id);
+      payload.append("location", formData.location.trim());
+      payload.append("priority", formData.priority);
+
+      // Attach the selected image if one was provided.
+
+      if (selectedImage) {
+        payload.append("image", selectedImage);
+      }
+
       await apiRequest("/reports", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${currentToken}`,
         },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          category_id: formData.category_id,
-          location: formData.location.trim(),
-          priority: formData.priority,
-        }),
+        body: payload,
       });
+
+      // Refresh reports after successful submission.
 
       const reportData = await apiRequest("/reports", {
         headers: {
@@ -235,6 +263,8 @@ export default function ResidentDashboard({ reports, setReports }) {
       setReports(
         (reportData.reports || []).map(normaliseReport)
       );
+
+      // Reset the form.
 
       setFormData({
         title: "",
@@ -604,12 +634,12 @@ export default function ResidentDashboard({ reports, setReports }) {
                       </span>
 
                       <span className="text-xs text-[#92998b]">
-                        JPG, PNG or other image formats · Maximum 5MB
+                        JPEG, PNG or WebP · Maximum 5MB
                       </span>
 
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={handleImageChange}
                         className="hidden"
                       />

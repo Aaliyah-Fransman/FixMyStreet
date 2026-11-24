@@ -10,11 +10,11 @@ import {
   X,
   Save,
   MapPin,
-  UserRound,
   Mail,
   ShieldCheck,
   Phone,
   LogOut,
+  ImageOff,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -240,6 +240,7 @@ export default function AdminDashboard({ reports, setReports }) {
           </div>
 
           {/* ADMIN PROFILE */}
+
           <section className="bg-white border border-[#e1e3d9] rounded-lg p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
               <div className="flex items-center gap-4">
@@ -294,6 +295,7 @@ export default function AdminDashboard({ reports, setReports }) {
           </section>
 
           {/* SUPPORT CONTACTS */}
+
           <section className="bg-[#202820] text-white rounded-lg p-6 mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Phone size={18} className="text-[#c9f36a]" />
@@ -341,6 +343,7 @@ export default function AdminDashboard({ reports, setReports }) {
           )}
 
           {/* REPORT STATISTICS */}
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
             {stats.map(([label, value, Icon]) => (
               <div key={label} className="bg-white border border-[#e2e4da] rounded-lg p-5">
@@ -355,6 +358,7 @@ export default function AdminDashboard({ reports, setReports }) {
           </div>
 
           {/* REPORT FORM */}
+
           {showForm && (
             <section className="bg-white border border-[#dfe2d6] rounded-lg p-6 mb-8">
               <div className="flex justify-between mb-6">
@@ -466,6 +470,7 @@ export default function AdminDashboard({ reports, setReports }) {
           )}
 
           {/* ALL REPORTS */}
+
           <section className="bg-white border border-[#e1e3d9] rounded-lg overflow-hidden">
             <div className="p-6 border-b border-[#eceee6]">
               <p className="section-kicker">INCOMING & EXISTING</p>
@@ -485,9 +490,28 @@ export default function AdminDashboard({ reports, setReports }) {
                 {reports.map(report => (
                   <article
                     key={report.id}
-                    className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className="p-5 flex flex-col md:flex-row md:items-start justify-between gap-5"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
+
+                      {/* REPORT IMAGE */}
+
+                      {report.image_url ? (
+                        <img
+                          src={report.image_url}
+                          alt={`Photographic evidence for ${report.title}`}
+                          className="w-full max-w-md h-52 object-cover rounded-lg mb-4 border border-[#e1e3d9]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full max-w-md h-24 rounded-lg bg-[#f2f3ed] flex items-center justify-center gap-2 mb-4 text-[#a0a596]">
+                          <ImageOff size={20} />
+                          <span className="text-xs">
+                            No photograph attached
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <strong className="text-[#202820]">{report.title}</strong>
 
@@ -505,6 +529,10 @@ export default function AdminDashboard({ reports, setReports }) {
 
                       <p className="text-sm text-[#747b6e] mt-2">
                         {report.description}
+                      </p>
+
+                      <p className="text-xs text-[#8b8e83] mt-3">
+                        {report.priority || "Medium"} priority
                       </p>
                     </div>
 
